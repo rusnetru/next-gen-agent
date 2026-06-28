@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from src.memory.episodic import EpisodicMemory
+from src.memory.api import Memory
 
 
 class Agent:
     def __init__(self) -> None:
-        self.memory = EpisodicMemory()
+        self.memory = Memory()
 
     def step(self, perception: str) -> str:
-        related = self.memory.retrieve(perception)
+        related = self.memory.retrieve(perception)["episodic"]
         plan = self._plan(perception, related)
         result = self._act(plan)
-        self.memory.store(perception, context={"plan": plan, "result": result})
+        self.memory.store(perception, type="episodic", context={"plan": plan, "result": result})
         return result
 
     def _plan(self, perception: str, related: list) -> str:

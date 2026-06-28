@@ -10,5 +10,5 @@ def test_agent_step_returns_result():
 def test_agent_stores_episode():
     agent = Agent()
     agent.step("hello")
-    retrieved = agent.memory.retrieve("hello")
+    retrieved = agent.memory.retrieve("hello")["episodic"]
     assert len(retrieved) == 1

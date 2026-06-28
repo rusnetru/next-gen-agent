@@ -26,3 +26,6 @@ class EpisodicMemory:
     def retrieve(self, query: str, top_k: int = 5) -> list[Episode]:
         matches = [e for e in self._episodes if query.lower() in e.content.lower()]
         return matches[-top_k:]
+
+    def all(self) -> list[Episode]:
+        return list(self._episodes)
