@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.memory.api import Memory
 
 
 class Agent:
-    def __init__(self) -> None:
-        self.memory = Memory()
+    def __init__(self, db_path: str | Path = "memory.db") -> None:
+        self.memory = Memory(db_path=db_path)
 
     def step(self, perception: str) -> str:
         related = self.memory.retrieve(perception)["episodic"]

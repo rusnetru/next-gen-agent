@@ -1,4 +1,4 @@
-"""Memory API v1 — unified facade over episodic store, semantic graph, and skill store.
+"""Memory API v1 — unified facade over working, episodic, semantic, and skill stores.
 
 Spec (docs/02_development_plan.md, section 1.4):
     memory.store(event, type="episodic", context={...})
@@ -9,20 +9,29 @@ Spec (docs/02_development_plan.md, section 1.4):
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Literal
 
 from src.memory.episodic import Episode, EpisodicMemory
 from src.memory.semantic import SemanticGraph
 from src.memory.skills import Skill, SkillStore
+from src.memory.working import WorkingMemory
 
 MemoryType = Literal["episodic", "semantic"]
 
 
 class Memory:
-    def __init__(self) -> None:
-        self.episodic = EpisodicMemory()
+    def __init__(
+        self,
+        db_path: str | Path = "memory.db",
+        working_capacity: int = 20,
+        consolidate_every: int = 5,
+    ) -> None:
+        self.working = WorkingMemory(capacity=working_capacity)
+        self.episodic = EpisodicMemory(db_path=db_path)
         self.semantic = SemanticGraph()
         self.skills = SkillStore()
+        self.consolidate_every = consolidate_every
 
     def store(
         self,
@@ -30,9 +39,13 @@ class Memory:
         type: MemoryType = "episodic",
         context: dict[str, Any] | None = None,
     ) -> Episode:
+        self.working.add(event)
         if type == "semantic":
             self.semantic.add_fact(event, context or {})
-        return self.episodic.store(event, context)
+        episode = self.episodic.store(event, context)
+        if self.consolidate_every and self.episodic.count() % self.consolidate_every == 0:
+            self.consolidate()
+        return episode
 
     def retrieve(
         self,
@@ -69,3 +82,6 @@ class Memory:
         if not plan:
             return None
         return self.skills.extract(name=episode.content, procedure=plan)
+
+    def close(self) -> None:
+        self.episodic.close()

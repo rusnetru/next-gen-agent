@@ -20,25 +20,27 @@
 ### ФАЗА 0: Фундамент (Недели 1–3)
 **Цель:** Минимальная рабочая архитектура
 
-#### 0.1 Выбор технологического стека
-- [ ] LLM backend: Anthropic Claude API / OpenAI
-- [ ] Векторная БД: ChromaDB (локально) → Qdrant (production)
-- [ ] Граф памяти: NetworkX (прототип) → Neo4j (production)
-- [ ] Оркестрация: собственная реализация vs. LangGraph vs. raw SDK
-- [ ] Протоколы: MCP (инструменты) + A2A (межагентное)
-- [ ] Язык: Python (прототип), возможен Rust-core позже
+#### 0.1 Выбор технологического стека — ЗАВЕРШЕНО
+- [x] LLM backend: Anthropic Claude API (см. [docs/03_tech_stack.md](03_tech_stack.md))
+- [x] Векторная БД: ChromaDB (локально) → Qdrant (production)
+- [x] Граф памяти: NetworkX (прототип) → Neo4j (production)
+- [x] Оркестрация: собственная реализация (raw SDK, без LangGraph)
+- [x] Протоколы: MCP (инструменты) + заглушка A2A-интерфейса
+- [x] Язык: Python 3.11+, сборка под Windows (PyInstaller)
 
-#### 0.2 Базовый agent loop
+#### 0.2 Базовый agent loop — ЗАВЕРШЕНО
 ```
 [Perceive] → [Retrieve Memory] → [Plan] → [Act] → [Observe] → [Store Memory] → loop
 ```
 
-Реализовать минимальный ReAct-совместимый цикл с персистентной памятью.
+Реализовано: `src/agent/loop.py` — минимальный ReAct-совместимый цикл с персистентной памятью.
 
-#### 0.3 Слой памяти v1
-- Working memory: context window management
-- Episodic store: SQLite + векторные эмбеддинги
-- Семантическая индексация: автоматическое обобщение после N эпизодов
+#### 0.3 Слой памяти v1 — ЗАВЕРШЕНО
+- [x] Working memory: context window management (`src/memory/working.py`, FIFO eviction)
+- [x] Episodic store: SQLite-персистентность (`src/memory/episodic.py`)
+- [x] Семантическая индексация: авто-консолидация episodic → semantic после N эпизодов (`src/memory/api.py`, `consolidate_every`)
+
+**Фаза 0 завершена.** Memory API v1 (`src/memory/api.py`) реализует полный контракт: `store`, `retrieve`, `consolidate`, `skill_extract`. 10/10 тестов проходят. Следующий шаг — Фаза 1 (полноценная episodic engine с векторным поиском через ChromaDB) либо Фаза 2 (Orchestrator + субагенты).
 
 ---
 

@@ -1,15 +1,19 @@
 from src.memory.api import Memory
 
 
+def make_memory(**kwargs) -> Memory:
+    return Memory(db_path=":memory:", **kwargs)
+
+
 def test_store_and_retrieve_episodic():
-    memory = Memory()
+    memory = make_memory()
     memory.store("user likes coffee")
     result = memory.retrieve("coffee")
     assert any("coffee" in e.content for e in result["episodic"])
 
 
 def test_consolidate_promotes_recurring_episodes():
-    memory = Memory()
+    memory = make_memory(consolidate_every=0)
     memory.store("user likes coffee")
     memory.store("user likes coffee")
     promoted = memory.consolidate()
@@ -17,8 +21,15 @@ def test_consolidate_promotes_recurring_episodes():
     assert memory.semantic.has_fact("user likes coffee")
 
 
+def test_auto_consolidate_triggers_after_n_episodes():
+    memory = make_memory(consolidate_every=2)
+    memory.store("repeat me")
+    memory.store("repeat me")
+    assert memory.semantic.has_fact("repeat me")
+
+
 def test_skill_extract_from_episode_with_plan():
-    memory = Memory()
+    memory = make_memory()
     memory.store("greet user", context={"plan": "say hello"})
     skill = memory.skill_extract(0)
     assert skill is not None
@@ -26,6 +37,21 @@ def test_skill_extract_from_episode_with_plan():
 
 
 def test_skill_extract_returns_none_without_plan():
-    memory = Memory()
+    memory = make_memory()
     memory.store("no plan event")
     assert memory.skill_extract(0) is None
+
+
+def test_working_memory_tracks_recent_events():
+    memory = make_memory()
+    memory.store("event one")
+    memory.store("event two")
+    assert memory.working.as_list() == ["event one", "event two"]
+
+
+def test_working_memory_evicts_oldest_when_full():
+    memory = make_memory(working_capacity=2)
+    memory.store("first")
+    memory.store("second")
+    memory.store("third")
+    assert memory.working.as_list() == ["second", "third"]
