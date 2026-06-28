@@ -38,14 +38,21 @@ class Memory:
         event: str,
         type: MemoryType = "episodic",
         context: dict[str, Any] | None = None,
+        who: str | None = None,
+        where: str | None = None,
+        why: str | None = None,
     ) -> Episode:
         self.working.add(event)
         if type == "semantic":
             self.semantic.add_fact(event, context or {})
-        episode = self.episodic.store(event, context)
+        episode = self.episodic.store(event, context, who=who, where=where, why=why)
         if self.consolidate_every and self.episodic.count() % self.consolidate_every == 0:
             self.consolidate()
         return episode
+
+    def forget(self, cutoff_timestamp: float) -> int:
+        """Evict episodic memories older than cutoff_timestamp. Returns count evicted."""
+        return self.episodic.forget_before(cutoff_timestamp)
 
     def retrieve(
         self,

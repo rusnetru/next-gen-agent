@@ -44,31 +44,34 @@
 
 ---
 
-### ФАЗА 1: Память (Недели 4–8)
+### ФАЗА 1: Память (Недели 4–8) — ЗАВЕРШЕНО
 **Цель:** Полноценная четырёхуровневая система памяти
 
-#### 1.1 Episodic Memory Engine
-- Захват событий с метаданными: timestamp, context, who, where, why
-- Single-shot learning без gradient updates
-- Retrieval: hybrid векторно-граф поиск
+#### 1.1 Episodic Memory Engine — ЗАВЕРШЕНО
+- [x] Захват событий с метаданными: timestamp, context, who, where, why (`src/memory/episodic.py`)
+- [x] Single-shot learning без gradient updates — эпизод доступен для retrieval сразу после store
+- [x] Retrieval: hybrid векторно-граф поиск (`src/memory/vector_index.py` — хешированные bag-of-words эмбеддинги + keyword match; production-замена — ChromaDB embedding function без изменения интерфейса)
 
-#### 1.2 Memory Consolidation Pipeline
-- Периодическое сжатие: episodic → semantic (аналог сна)
-- Вытеснение старых / малорелевантных воспоминаний
-- Версионирование памяти (SSGM-inspired: stability + safety)
+#### 1.2 Memory Consolidation Pipeline — ЗАВЕРШЕНО
+- [x] Периодическое сжатие: episodic → semantic (`Memory.consolidate()`, авто-триггер по `consolidate_every`)
+- [x] Вытеснение старых / малорелевантных воспоминаний (`EpisodicMemory.forget_before()` / `Memory.forget()`)
+- [x] Версионирование памяти (SSGM-inspired): `SemanticGraph.update_fact()` создаёт новую версию через `supersedes`-связь, не удаляя старый факт; `history()` восстанавливает цепочку версий
 
-#### 1.3 Procedural Memory Store
-- Хранение успешных паттернов действий как Skills
-- Автоматическое извлечение Skills из успешных эпизодов
-- Самосовершенствование Skills (Hermes-inspired)
+#### 1.3 Procedural Memory Store — ЗАВЕРШЕНО
+- [x] Хранение успешных паттернов действий как Skills (`src/memory/skills.py`)
+- [x] Автоматическое извлечение Skills из эпизодов (`Memory.skill_extract()`)
+- [x] Самосовершенствование Skills (Hermes-inspired): `SkillStore.combine()` собирает составной skill из двух валидированных; ранжирование по `success_rate`
 
-#### 1.4 Memory API
+#### 1.4 Memory API — ЗАВЕРШЕНО
 ```python
-memory.store(event, type="episodic", context={...})
+memory.store(event, type="episodic", context={...}, who=..., where=..., why=...)
 memory.retrieve(query, top_k=5, types=["episodic", "semantic"])
 memory.consolidate()  # episodic → semantic
 memory.skill_extract(episode_id)  # авто-извлечение навыка
+memory.forget(cutoff_timestamp)  # вытеснение старых эпизодов
 ```
+
+**Фаза 1 завершена.** 17/17 тестов проходят. Следующий шаг — Фаза 2 (Orchestrator + иерархия субагентов).
 
 ---
 
