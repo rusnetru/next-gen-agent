@@ -52,6 +52,8 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 .\.venv\Scripts\python.exe src\main.py
 ```
 
+Либо двойным кликом по `run.bat` в корне репозитория — он сам проверяет наличие `.venv` (создаёт и ставит зависимости при первом запуске, если её ещё нет), предупреждает, если не настроен `.env` с `DEEPSEEK_API_KEY` (в этом случае агент работает на заглушках субагентов), и запускает `python -m src.main`.
+
 Рядом появится `memory.db` — персистентная episodic-память (SQLite), переживает перезапуск.
 
 ---
