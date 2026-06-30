@@ -13,7 +13,7 @@
 |---|---|---|
 | Фаза 0: Фундамент | ✅ Завершена | `db2e386`, `e7aeeae`, `7cafb0d` |
 | Фаза 1: Память | ✅ Завершена | `d59ed2a` |
-| Фаза 2: Иерархия субагентов | ⬜ Не начата | — |
+| Фаза 2: Иерархия субагентов | ✅ Завершена | `<TBD>` |
 | Фаза 3: Goal/Loop архитектура | ⬜ Не начата | — |
 | Фаза 4: Эволюция и самосовершенствование | ⬜ Не начата | — |
 | Фаза 5: Производственная готовность | ⬜ Не начата | — |
@@ -83,11 +83,44 @@ memory.forget(cutoff_timestamp)
 
 ---
 
+## Фаза 2: Иерархия субагентов — ✅ Завершена
+
+**Цель:** Оркестратор + пул специализированных субагентов.
+
+### 2.1 Orchestrator Agent
+- Декомпозиция задачи: `Orchestrator.decompose()` (делегирует `Planner.decompose()`, пока — наивный сплит по " and ")
+- Выбор и инициализация субагентов: `Orchestrator.route()` — маршрутизация подзадачи к роли по ключевым словам
+- Сборка и верификация результатов: после исполнения всегда запускаются `Verifier` и `MemoryCurator`, итог собирается в `transcript`
+- Паттерны исполнения: `sequential` (цикл), `parallel` (`ThreadPoolExecutor`), `hierarchical` (рекурсивная декомпозиция подзадач)
+
+### 2.2 Базовые субагенты (`src/orchestrator/subagents.py`)
+- **Researcher** — заглушка поиска/синтеза информации, пишет в `SharedContext`
+- **Executor** — заглушка выполнения действия
+- **Verifier** — проверяет, что в `SharedContext` появился результат
+- **Planner** — декомпозиция задачи на подзадачи
+- **Memory Curator** — пишет эпизод в episodic memory и запускает консолидацию (использует Memory API из Фазы 1)
+
+### 2.3 Динамическая топология
+- `Orchestrator.pool` — реестр `role -> Subagent`, не фиксирован на этапе конструирования
+- `register(role, agent)` / `unregister(role)` — добавление/удаление типов субагентов в рантайме
+- Маршрутизация по ключевым словам легко расширяется новыми ролями без изменения ядра оркестратора
+
+### 2.4 Subagent Communication Layer (`src/orchestrator/communication.py`)
+- `SharedContext` — общая working memory команды на время одного запуска: `data` (key/value) + `transcript` (append-only лог сообщений агентов)
+- Структура задумана как нейтральный payload, пригодный для A2A-совместимой внешней интеграции в будущем (сам протокол A2A — вне рамок Фазы 2)
+
+### Результат
+- Новые файлы: `src/orchestrator/communication.py`, `src/orchestrator/subagents.py`, `src/orchestrator/orchestrator.py`, `tests/test_orchestrator.py`
+- 28/28 тестов проходят (11 новых)
+
+---
+
 ## Известные технические заметки
 
 - В исходном файле `token github.txt` на Desktop был обнаружен GitHub PAT в открытом виде — он не коммитился в репозиторий. Рекомендация: отозвать и сгенерировать новый токен.
 - `*.db` (включая `memory.db`) исключены через `.gitignore` — персистентная память не попадает в git.
+- Subagents в Фазе 2 — детерминированные заглушки (без вызовов LLM), чтобы оркестрация (декомпозиция, маршрутизация, коммуникация) тестировалась без сети. Подключение реального Claude API внутрь `act()` — следующий технический шаг, не меняющий контракт `Orchestrator`.
 
 ## Следующий шаг
 
-Фаза 2: Orchestrator Agent + иерархия субагентов (Researcher, Executor, Verifier, Planner, Memory Curator), динамическая топология команды.
+Фаза 3: Goal/Loop архитектура — Goal Management System, Planning Engine (ReAct + self-critique), task-decoupled execution, self-correction loops (inner/outer/meta).
