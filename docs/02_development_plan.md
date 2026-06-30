@@ -145,22 +145,24 @@ Meta loop:   project → consolidate → evolve capabilities  (long-term)
 
 ---
 
-### ФАЗА 4: Эволюция и самосовершенствование (Недели 21–28)
+### ФАЗА 4: Эволюция и самосовершенствование (Недели 21–28) — ЗАВЕРШЕНО
 **Цель:** Агент улучшает себя в процессе работы
 
-#### 4.1 Skill Evolution Engine
-- Автоматическое создание Skills из успешных эпизодов
-- Оценка и рейтинг Skills по частоте использования и успешности
-- Комбинирование Skills в более сложные
+#### 4.1 Skill Evolution Engine — ЗАВЕРШЕНО
+- [x] Автоматическое создание Skills из успешных эпизодов — `SkillEvolutionEngine.extract_from_successful_episodes()` (`src/evolution/skill_evolution.py`), фильтрует по `context["success"]`
+- [x] Оценка и рейтинг Skills по частоте использования и успешности — `rank()` (success_rate, затем uses)
+- [x] Комбинирование Skills в более сложные — `auto_combine_sequential_pairs()`: связки навыков, повторяющиеся подряд в успешных эпизодах, автоматически собираются в составной skill через `SkillStore.combine()`
 
-#### 4.2 Strategy Adaptation
-- Агент отслеживает, какие стратегии планирования работают для каких классов задач
-- Адаптирует подход на основе накопленного опыта
-- Не перезаписывает себя (в отличие от Hyperagents) — только конфигурацию
+#### 4.2 Strategy Adaptation — ЗАВЕРШЕНО
+- [x] Агент отслеживает, какие стратегии планирования работают для каких классов задач — `StrategyAdapter.observe()` поверх `StrategyRegistry` из Фазы 3 (`src/evolution/strategy_adaptation.py`)
+- [x] Адаптирует подход на основе накопленного опыта — `StrategyAdapter.select()`
+- [x] Не перезаписывает себя (в отличие от Hyperagents) — только конфигурацию: адаптация ограничена *выбором* зарегистрированной стратегии по имени, агент не генерирует и не подменяет код
 
-#### 4.3 Team Composition Learning
-- Система учится, какие комбинации субагентов эффективны для каких задач
-- История успехов/неудач команд сохраняется в semantic memory
+#### 4.3 Team Composition Learning — ЗАВЕРШЕНО
+- [x] Система учится, какие комбинации субагентов эффективны для каких задач — `TeamCompositionLearner.record()` / `best_team()` (`src/evolution/team_composition.py`)
+- [x] История успехов/неудач команд сохраняется в semantic memory — каждая комбинация ролей пишется как факт в `SemanticGraph` (`team[task_class] = role1+role2`) с метаданными `uses`/`successes`
+
+**Фаза 4 завершена.** 58/58 тестов проходят (9 новых: skill evolution, strategy adaptation, team composition).
 
 ---
 

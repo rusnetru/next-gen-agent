@@ -48,6 +48,9 @@ class SkillStore:
         if skill is not None:
             skill.failures += 1
 
+    def all(self) -> dict[str, Skill]:
+        return dict(self._skills)
+
     def best(self, top_k: int = 5) -> list[Skill]:
         ranked = sorted(self._skills.values(), key=lambda s: s.success_rate, reverse=True)
         return ranked[:top_k]

@@ -15,7 +15,7 @@
 | Фаза 1: Память | ✅ Завершена | `d59ed2a` |
 | Фаза 2: Иерархия субагентов | ✅ Завершена | `bb06d76` |
 | Фаза 3: Goal/Loop архитектура | ✅ Завершена | `a44f961` |
-| Фаза 4: Эволюция и самосовершенствование | ⬜ Не начата | — |
+| Фаза 4: Эволюция и самосовершенствование | ✅ Завершена | `<TBD>` |
 | Фаза 5: Производственная готовность | ⬜ Не начата | — |
 
 ---
@@ -148,13 +148,39 @@ memory.forget(cutoff_timestamp)
 
 ---
 
+## Фаза 4: Эволюция и самосовершенствование — ✅ Завершена
+
+**Цель:** агент улучшает себя в процессе работы, не переписывая собственный код.
+
+### 4.1 Skill Evolution Engine (`src/evolution/skill_evolution.py`)
+- `extract_from_successful_episodes()` — сканирует episodic-эпизоды с `context["success"] == True` и автоматически создаёт/обновляет Skills через `Memory.skill_extract()`
+- `rank()` — ранжирование Skills по `success_rate`, затем по числу использований
+- `auto_combine_sequential_pairs()` — находит пары навыков, повторяющиеся подряд в успешных эпизодах не реже `min_co_occurrences` раз, и автоматически собирает их в составной skill через `SkillStore.combine()`
+
+### 4.2 Strategy Adaptation (`src/evolution/strategy_adaptation.py`)
+- `StrategyAdapter` — тонкая обёртка над `StrategyRegistry` (Фаза 3): `select(task_class)` выбирает зарегистрированную стратегию по истории успеха, `observe()` пишет исход
+- Адаптация ограничена выбором *имени* стратегии — агент не генерирует и не подменяет код, только конфигурацию (явное отличие от self-rewriting подходов вроде Hyperagents)
+
+### 4.3 Team Composition Learning (`src/evolution/team_composition.py`)
+- `TeamCompositionLearner.record(task_class, team, success)` — фиксирует исход для конкретной комбинации ролей субагентов
+- `best_team(task_class)` — возвращает состав команды с наивысшим success rate для класса задач
+- История пишется как факты в `SemanticGraph` (`team[task_class] = role1+role2`, метаданные `uses`/`successes`) — переживает консолидацию памяти из Фазы 1
+
+### Результат
+- Новая директория: `src/evolution/`
+- Новые тесты: `test_skill_evolution.py`, `test_strategy_adaptation.py`, `test_team_composition.py`
+- `SkillStore` дополнен публичным `all()` вместо доступа к приватному полю
+- 58/58 тестов проходят (9 новых)
+
+---
+
 ## Известные технические заметки
 
 - В исходном файле `token github.txt` на Desktop был обнаружен GitHub PAT в открытом виде — он не коммитился в репозиторий. Рекомендация: отозвать и сгенерировать новый токен.
 - `*.db` (включая `memory.db`, `tasks.db`) исключены через `.gitignore` — персистентные данные не попадают в git.
 - Subagents в Фазе 2 — детерминированные заглушки (без вызовов LLM), чтобы оркестрация (декомпозиция, маршрутизация, коммуникация) тестировалась без сети. Подключение реального Claude API внутрь `act()` — следующий технический шаг, не меняющий контракт `Orchestrator`.
-- Goal Stack, Planning Engine, Task Graph и Self-Correction Loops в Фазе 3 реализованы как независимые модули — ещё не связаны друг с другом и с Orchestrator/Memory в единый цикл агента. Интеграция в общий `Agent`/`Orchestrator` — следующий технический шаг при переходе к реальному end-to-end сценарию.
+- Goal Stack, Planning Engine, Task Graph, Self-Correction Loops (Фаза 3) и весь Evolution-слой (Фаза 4) реализованы как независимые модули поверх Memory/Orchestrator — ещё не связаны друг с другом в единый end-to-end цикл агента. Сквозная интеграция — следующий технический шаг при переходе к реальному сценарию использования (после или во время Фазы 5).
 
 ## Следующий шаг
 
-Фаза 4: Эволюция и самосовершенствование — Skill Evolution Engine, Strategy Adaptation, Team Composition Learning.
+Фаза 5: Производственная готовность — Observability, Safety & Governance, Scalability.
