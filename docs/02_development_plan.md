@@ -261,3 +261,18 @@ Meta loop:   project → consolidate → evolve capabilities  (long-term)
 - [ ] Написать спецификацию Memory API
 - [ ] Создать репозиторий и базовую структуру проекта
 - [ ] Реализовать proof-of-concept: агент с персистентной episodic memory
+
+---
+
+## ФАЗА 6: Сквозная интеграция и реальный LLM (вне исходного плана) — ЗАВЕРШЕНО
+
+> Добавлена по факту: исходный план описывал 6 фаз (0–5). После их завершения внешний сравнительный анализ (`Hermes vs NexGen agent analysis.txt`, см. [docs/00_progress_log.md](00_progress_log.md)) показал, что архитектура без реального LLM и без сквозной связки модулей — "скелет". Фаза 6 закрывает оба пункта.
+
+**Цель:** заменить детерминированные заглушки субагентов реальными вызовами LLM (DeepSeek) и связать Orchestrator + Goal Stack + Strategy Adaptation + Self-Correction + Observability в единый end-to-end цикл.
+
+- [x] LLM-клиент к DeepSeek API (`src/llm/client.py`, OpenAI-совместимый SDK)
+- [x] `LLMSubagent`/`LLMVerifier` — реальные вызовы модели в роли Researcher/Executor/Verifier, тот же контракт `Subagent.act()`, без изменений в `Orchestrator`
+- [x] `EndToEndAgent` (`src/agent/end_to_end.py`) — связывает GoalStack, StrategyAdapter, Orchestrator, inner self-correction loop и Tracer в единый прогон
+- [x] Подтверждено реальным запуском (`python -m src.main` с `DEEPSEEK_API_KEY`): модель дала содержательные ответы, Verifier вынес настоящий вердикт, self-correction loop отработал на живых данных
+
+Подробности и результат — в [docs/00_progress_log.md](00_progress_log.md), раздел «Фаза 6».

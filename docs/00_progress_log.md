@@ -17,6 +17,7 @@
 | Фаза 3: Goal/Loop архитектура | ✅ Завершена | `a44f961` |
 | Фаза 4: Эволюция и самосовершенствование | ✅ Завершена | `ea4bded` |
 | Фаза 5: Производственная готовность | 🟡 Частично завершена (всё, что не требует инфраструктуры) | `d0ca38e`, `91d9b31` (git-deploy) |
+| Фаза 6: Сквозная интеграция + реальный LLM (DeepSeek) | ✅ Завершена (вне исходных 6 фаз плана) | `<TBD>` |
 
 ---
 
@@ -216,18 +217,48 @@ memory.forget(cutoff_timestamp)
 
 ---
 
+## Фаза 6: Сквозная интеграция + реальный LLM (DeepSeek) — ✅ Завершена
+
+**Цель:** заменить детерминированные заглушки субагентов реальными вызовами LLM и связать ранее независимые модули (Orchestrator, Goal Stack, Strategy Adaptation, Self-Correction, Observability) в единый end-to-end цикл.
+
+Инициировано на основе внешнего сравнительного анализа (`Hermes vs NexGen agent analysis.txt`, предоставлен пользователем) — Hermes выигрывал именно за счёт реального LLM и сквозной интеграции; план из раздела 6 этого анализа лёг в основу реализации.
+
+### LLM-слой (`src/llm/`)
+- `client.py` — `LLMClient`, тонкая обёртка над `openai`-SDK, указывающая `base_url=https://api.deepseek.com` (DeepSeek API OpenAI-совместим). Ключ читается из `DEEPSEEK_API_KEY` через `.env` (`python-dotenv`) — **ключ не коммитится**, `.env` в `.gitignore`
+- `subagent.py` — `LLMSubagent` (generic, для Researcher/Executor) и `LLMVerifier` (парсит PASS/FAIL из ответа модели в `context["verified"]`), оба реализуют ровно тот же контракт `Subagent.act(task, context) -> str`, что и стабы из Фазы 2 — `Orchestrator` не пришлось менять
+- `build_llm_subagent_pool()` — Planner и MemoryCurator остаются детерминированными (декомпозиция и работа с памятью не требуют модели), Researcher/Executor/Verifier — через LLM
+
+### End-to-end цикл (`src/agent/end_to_end.py`)
+`EndToEndAgent.run(task, task_class)` реально связывает:
+- `GoalStack` — задача регистрируется как цель, по завершении деактивируется
+- `StrategyAdapter` (Фаза 4.2) — выбирает паттерн исполнения (sequential/parallel/hierarchical) по истории успеха для класса задач
+- `Orchestrator` (Фаза 2) — исполняет задачу через пул субагентов (LLM или заглушки — флаг `use_llm`)
+- `inner_loop` (Фаза 3.4) — ретраит исполнение, если `Verifier` не подтвердил результат
+- `Tracer` (Фаза 5.1) — фиксирует ключевые события всего прогона
+
+### Подтверждение реальной работы
+`python -m src.main` с `DEEPSEEK_API_KEY` в `.env` выполнил настоящий end-to-end прогон: Researcher и Executor дали содержательные ответы от модели `deepseek-chat`, Verifier (тоже LLM) реально оценил результат и вынес вердикт (в т.ч. наблюдался честный `FAIL` с ретраем) — то есть self-correction loop отработал на живых данных, а не на заглушке.
+
+### Результат
+- Новые файлы: `src/llm/client.py`, `src/llm/subagent.py`, `src/agent/end_to_end.py`
+- Новые тесты: `test_llm_client.py`, `test_llm_subagent.py`, `test_end_to_end.py` (все юнит-тесты используют fake-клиент, реальных сетевых вызовов в тестах нет — быстро и детерминированно)
+- `src/main.py` переписан: запускает `EndToEndAgent`, автоматически включает LLM-режим, если `DEEPSEEK_API_KEY` задан в окружении
+- 87/87 тестов проходят (17 новых)
+
+---
+
 ## Известные технические заметки
 
 - В исходном файле `token github.txt` на Desktop был обнаружен GitHub PAT в открытом виде — он не коммитился в репозиторий. Рекомендация: отозвать и сгенерировать новый токен.
 - `*.db` (включая `memory.db`, `tasks.db`) исключены через `.gitignore` — персистентные данные не попадают в git.
-- Subagents в Фазе 2 — детерминированные заглушки (без вызовов LLM), чтобы оркестрация (декомпозиция, маршрутизация, коммуникация) тестировалась без сети. Подключение реального Claude API внутрь `act()` — следующий технический шаг, не меняющий контракт `Orchestrator`.
-- Goal Stack, Planning Engine, Task Graph, Self-Correction Loops (Фаза 3), весь Evolution-слой (Фаза 4) и весь Observability/Safety/Scalability-слой (Фаза 5) реализованы как независимые модули поверх Memory/Orchestrator — ещё не связаны друг с другом в единый end-to-end цикл агента.
-- Subagents всё ещё детерминированные заглушки — реальный вызов Claude API внутрь `Subagent.act()` не реализован.
-- `dist\next-gen-agent.exe` весит ~231 МБ — PyInstaller затягивает в onefile-бандл весь транзитивный вес `chromadb` (включая `torch`, `onnxruntime`), хотя текущий код фактически использует только собственный `vector_index.py`. При необходимости компактной сборки: явно исключить неиспользуемые тяжёлые пакеты через `--exclude-module` в `build.ps1`, либо отложить `chromadb` в requirements до момента реальной интеграции embedding-модели.
+- `DEEPSEEK_API_KEY` хранится в `next-gen-agent/.env` (исключён `.gitignore`); исходный файл с ключом на Desktop (`api llm.txt`) оставлен пользователем как есть, вне репозитория.
+- `dist\next-gen-agent.exe` весит ~231 МБ — PyInstaller затягивает в onefile-бандл весь транзитивный вес `chromadb` (включая `torch`, `onnxruntime`), хотя текущий код фактически использует только собственный `vector_index.py`. При необходимости компактной сборки: явно исключить неиспользуемые тяжёлые пакеты через `--exclude-module` в `build.ps1`, либо отложить `chromadb` в requirements до момента реальной интеграции embedding-модели. Развёртывание в любом случае теперь идёт через git (см. раздел выше), не через exe.
 
 ## Следующий шаг
 
-Все 6 фаз плана пройдены в объёме, реализуемом как библиотечный код (Фаза 5 — частично, см. выше). Дальнейшая работа — не новая фаза, а **сквозная интеграция**:
-1. Связать Orchestrator + Goal Stack + Planning Engine + Task Graph + Self-Correction Loops в единый end-to-end `Agent`-цикл (сейчас это независимые модули)
-2. Заменить детерминированные заглушки субагентов на реальные вызовы Claude API
-3. Подключить реальную инфраструктуру для оставшихся пунктов Фазы 5.3 (cloud vector DB, horizontal scaling) при появлении production-окружения
+Базовый end-to-end цикл с реальным LLM работает. Дальнейшие направления:
+1. Перевести `Planner` на LLM-декомпозицию вместо наивного сплита по " and " (сейчас осознанно оставлен детерминированным)
+2. Заменить упрощённый MCTS (`src/planning/engine.py`) на более полноценную реализацию с деревом и backpropagation
+3. Маршрутизация субагентов (`Orchestrator.route()`) — перевести с keyword-matching на LLM-роутинг
+4. Подключить реальную инфраструктуру для оставшихся пунктов Фазы 5.3 (cloud vector DB, horizontal scaling) при появлении production-окружения
+5. Наполнить `src/tools/` реальными интеграциями инструментов (сейчас пусто)
